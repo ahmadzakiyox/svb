@@ -5,14 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Berbagi Informasi Perangkat</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
-        .container { text-align: center; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 90%; }
-        h1 { color: #333; }
-        p { color: #666; }
-        #startButton { background-color: #007bff; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: background-color 0.3s; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; padding: 1em; box-sizing: border-box; }
+        .container { text-align: center; background: white; padding: 2em; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; width: 100%; }
+        h1 { color: #333; margin-top: 0; }
+        p { color: #666; line-height: 1.5; }
+        #startButton { background-color: #007bff; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: background-color 0.3s; margin-top: 1em; }
         #startButton:disabled { background-color: #cccccc; cursor: not-allowed; }
-        #status { margin-top: 20px; font-style: italic; color: #555; }
-        video, canvas { display: none; } /* Sembunyikan elemen video dan canvas */
+        #status-list { margin-top: 20px; padding-left: 0; list-style-type: none; text-align: left; }
+        #status-list li { padding: 8px; border-bottom: 1px solid #eee; }
+        #status-list li.error { color: #d93025; font-weight: bold; }
+        video, canvas { display: none; }
     </style>
 </head>
 <body>
@@ -20,7 +22,7 @@
         <h1>Izin Berbagi Informasi</h1>
         <p>Dengan menekan tombol di bawah, Anda setuju untuk membagikan snapshot kamera depan, lokasi, dan informasi perangkat Anda untuk tujuan keamanan.</p>
         <button id="startButton">Mulai Berbagi Informasi</button>
-        <div id="status">Menunggu persetujuan...</div>
+        <ul id="status-list"></ul>
     </div>
 
     <video id="video" playsinline></video>
