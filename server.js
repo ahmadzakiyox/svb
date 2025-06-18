@@ -15,8 +15,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Ambil semua variabel yang dibutuhkan
-const API_KEY = process.env.API_KEY;
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const API_KEY = "KucingTerbangWarnaWarni123!"
+const TELEGRAM_TOKEN = "6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc"
 
 if (!API_KEY || !TELEGRAM_TOKEN) {
     console.error("FATAL ERROR: API_KEY dan TELEGRAM_TOKEN harus diatur di environment variables!");
