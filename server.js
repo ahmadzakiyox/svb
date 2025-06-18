@@ -7,9 +7,6 @@ const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 const path = require('path');
 
-// Memuat variabel dari file .env (untuk lokal)
-require('dotenv').config(); 
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
