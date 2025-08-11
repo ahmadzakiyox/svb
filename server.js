@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const API_KEY = process.env.API_KEY || "KucingTerbangWarnaWarni123!";
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || "6598957548:AAFd8OLzgH-ageyLfDGDxrEhoIS5CuHJ_sc"; 
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || "6136209053:AAF01MfDjE9oIajSHIDBDTpJ70CUuTqQLpY"; 
 
 const tracking_data = {};
 
