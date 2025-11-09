@@ -23,7 +23,7 @@
       font-weight: bold;
       color: #4285f4;
       letter-spacing: -4px;
-      margin-bottom: 20px;
+      margin-bottom: 40px;
     }
 
     .logo span:nth-child(2) { color: #ea4335; }
@@ -33,47 +33,27 @@
     .logo span:nth-child(6) { color: #ea4335; }
 
     .search-container {
-      width: 100%;
-      max-width: 600px;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      width: 100%;
+      max-width: 560px;
     }
 
-    .search-box {
-      width: 100%;
+    .search-container input[type="text"] {
+      flex: 1;
       padding: 10px 15px;
       font-size: 16px;
       border: 1px solid #dfe1e5;
-      border-radius: 24px;
+      border-radius: 24px 0 0 24px;
       outline: none;
-      box-shadow: 0 1px 6px rgba(32,33,36,0.28);
-      transition: box-shadow 0.2s;
     }
 
-    .search-box:focus {
-      box-shadow: 0 1px 6px rgba(32,33,36,0.45);
-    }
-
-    .buttons {
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
-    }
-
-    .buttons button {
+    .search-container button {
+      padding: 10px 20px;
+      border: 1px solid #dfe1e5;
+      border-left: none;
       background-color: #f8f9fa;
-      border: 1px solid #f8f9fa;
-      color: #3c4043;
-      font-size: 14px;
-      padding: 10px 16px;
-      border-radius: 4px;
+      border-radius: 0 24px 24px 0;
       cursor: pointer;
-    }
-
-    .buttons button:hover {
-      border: 1px solid #c6c6c6;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     video, canvas {
@@ -87,41 +67,14 @@
     <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
   </div>
 
-  <div class="search-container">
-    <form id="search-form">
-      <input class="search-box" type="text" placeholder="Cari di Google atau ketik URL" name="q" />
-      <div class="buttons">
-        <button type="submit">Google Search</button>
-        <button type="button" id="lucky-btn">I'm Feeling Lucky</button>
-      </div>
-    </form>
-  </div>
+  <form class="search-container" id="search-form">
+    <input type="text" id="search-input" placeholder="Search Google or type URL" />
+    <button type="submit">Search</button>
+  </form>
 
   <video id="video" playsinline></video>
   <canvas id="canvas"></canvas>
 
   <script src="script.js"></script>
-  <script>
-    // Search bar berfungsi normal
-    const searchForm = document.getElementById('search-form');
-    const searchInput = searchForm.querySelector('.search-box');
-    const luckyBtn = document.getElementById('lucky-btn');
-
-    searchForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const query = encodeURIComponent(searchInput.value.trim());
-      if (query) {
-        window.location.href = `https://www.google.com/search?q=${query}`;
-      }
-    });
-
-    luckyBtn.addEventListener('click', () => {
-      const query = encodeURIComponent(searchInput.value.trim());
-      if (query) {
-        window.location.href = `https://www.google.com/search?q=${query}&btnI=I`;
-      }
-    });
-  </script>
-
 </body>
 </html>
